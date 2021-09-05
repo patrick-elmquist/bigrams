@@ -76,6 +76,7 @@ private class Logger {
 
         when {
             first.isDigit() -> return
+            first.isWhitespace() -> return
             second == null -> return
             second.isLetterOrDigit() -> return
             second.isWhitespace() -> Unit
