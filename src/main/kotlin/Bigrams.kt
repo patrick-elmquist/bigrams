@@ -5,12 +5,12 @@ import java.util.concurrent.TimeUnit
 
 private val DEFAULT_FILETYPES = listOf("kt")
 private val DEFAULT_EXCLUDED_FOLDERS = listOf("build")
-
-private const val PRINT_TOP_COUNT = 25
+private const val DEFAULT_TOP_N = 25
 
 fun main(args: Array<String>) {
-    val extensions = args.parseArg("t") ?: DEFAULT_FILETYPES
-    val excludedFolders = args.parseArg("e") ?: DEFAULT_EXCLUDED_FOLDERS
+    val extensions = args.parseListArg("t") ?: DEFAULT_FILETYPES
+    val excludedFolders = args.parseListArg("e") ?: DEFAULT_EXCLUDED_FOLDERS
+    val showTopN = args.parseIntArg("n") ?: DEFAULT_TOP_N
     val inputFile = args.inputFile()
 
     val (loggers, time) = time {
@@ -20,7 +20,7 @@ fun main(args: Array<String>) {
             else -> emptyMap()
         }
     }
-    loggers.forEach { (extension, logger) -> logger.print(extension) }
+    loggers.forEach { (extension, logger) -> logger.print(extension, showTopN) }
     println("Analyzes took $time seconds.")
 }
 
@@ -45,7 +45,7 @@ private fun File.analyzeDir(extensions: List<String>, excludedFolders: List<Stri
 
 private fun File.analyze(loggers: MutableMap<String, Logger> = mutableMapOf()): Map<String, Logger> {
     val logger = loggers.getOrPut(extension) { Logger() }
-    println("Analyzing file: ${path} ${name}")
+    println("Analyzing file: $path $name")
     useLines { lines ->
         lines.map { it.trim() }
             .forEach { line ->
@@ -58,10 +58,15 @@ private fun File.analyze(loggers: MutableMap<String, Logger> = mutableMapOf()): 
 }
 
 private fun Array<String>.inputFile() = File(last())
-private fun Array<String>.parseArg(key: String) =
+private fun Array<String>.parseListArg(key: String) =
     firstOrNull { it.startsWith("$key=") }
         ?.drop(key.length + 1)
         ?.split(",")
+
+private fun Array<String>.parseIntArg(key: String) =
+    firstOrNull { it.startsWith("$key=") }
+        ?.drop(key.length + 1)
+        ?.toIntOrNull()
 
 private class Logger {
     private val singles = mutableMapOf<Char, Int>()
@@ -91,40 +96,43 @@ private class Logger {
         }
     }
 
-    fun print(extension: String) {
+    fun print(extension: String, n: Int) {
         val one = singles
             .toList()
             .sortedByDescending { it.second }
-            .take(PRINT_TOP_COUNT)
+            .take(n)
 
         val two = tuples
             .toList()
             .sortedByDescending { it.second }
-            .take(PRINT_TOP_COUNT)
+            .take(n)
 
         val three = triples
             .toList()
             .sortedByDescending { it.second }
-            .take(PRINT_TOP_COUNT)
+            .take(n)
 
         println("Extension '$extension'")
-        val n = PRINT_TOP_COUNT
+        val t = n.toString().padStart(3, ' ')
         val header =
-            "|Top $n|   Single    |    Tuple     |    Triple   |"
+            "|Top$t|   Single    |    Tuple     |    Triple   |"
         val horizontalLine =
             "+------+-------------+--------------+-------------+"
         println(horizontalLine)
-        println(header.format(PRINT_TOP_COUNT))
+        println(header.format(n))
         println(horizontalLine)
-        (0 until PRINT_TOP_COUNT).forEach {
+        (0 until n).forEach {
             val number = (it + 1).toString().padStart(4, ' ').padEnd(5, ' ')
-            println("|$number | ${one[it].show()}  |  ${two[it].show()}  |  ${three[it].show()} |")
+            println("|$number | ${one.getOrNull(it).show()}  |  ${two.getOrNull(it).show()}  |  ${three.getOrNull(it).show()} |")
         }
         println(horizontalLine)
         println()
     }
 
 
-    private fun <T> Pair<T, Int>.show() = "${first.toString().padStart(2, ' ').padEnd(3, ' ')}  ${second.toString().padEnd(5, ' ')}"
+    private fun <T> Pair<T, Int>?.show(): String {
+        if (this == null) return "          "
+        return "${first.toString().padStart(2, ' ').padEnd(3, ' ')}  ${second.toString().padEnd(5, ' ')}"
+    }
     private fun <T> MutableMap<T, Int>.increment(key: T) = put(key, getOrDefault(key, 0) + 1)
 }
