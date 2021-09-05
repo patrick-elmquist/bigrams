@@ -6,7 +6,7 @@ Rules:
 - Tuple: Symbols, no letters, digits and whitespace
 - Triple: Symbols and whitespace as 2nd char, no letters and digits
 
-Arguments:
+Flags:
 - File types 
   `t=kt,xml,java (default: kt)`
 - Exclude folders
