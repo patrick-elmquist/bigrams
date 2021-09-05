@@ -5,6 +5,14 @@ Single: Symbols, digits and whitespace, no letters
 Tuple: Symbols, no letters, digits and whitespace
 Triple: Symbols and whitespace as 2nd char, no letters and digits
 
+Arguments:
+- File types 
+  `t=kt,xml,java (default: kt)`
+- Exclude folders
+  `e=build,tmp (default: build)` 
+- Show top N items
+  `n=25 (default: 25)`
+
 ```
 # Run for Kotlin, Java and XML files, ignore build folders
 ./Bigrams.kt t=kt,xml e=build ./path/to/folder
