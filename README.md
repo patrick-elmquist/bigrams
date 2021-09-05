@@ -1,9 +1,10 @@
 # bigrams
 A script for analyzing documents for most  common symbols and bigrams and trigrams of symbols.
 
-Single: Symbols, digits and whitespace, no letters
-Tuple: Symbols, no letters, digits and whitespace
-Triple: Symbols and whitespace as 2nd char, no letters and digits
+Rules:
+- Single: Symbols, digits and whitespace, no letters
+- Tuple: Symbols, no letters, digits and whitespace
+- Triple: Symbols and whitespace as 2nd char, no letters and digits
 
 Arguments:
 - File types 
