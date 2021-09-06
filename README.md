@@ -3,8 +3,8 @@ A script for analyzing documents for most  common symbols and bigrams and trigra
 
 Rules:
 - Single: Symbols, digits and whitespace, no letters
-- Tuple: Symbols, no letters, digits and whitespace
-- Triple: Symbols and whitespace as 2nd char, no letters and digits
+- Tuple: Symbols, no letters, digits or whitespace
+- Triple: Symbols and whitespace as 2nd char, no letters or digits
 
 Flags:
 - File types 
