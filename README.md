@@ -1,5 +1,6 @@
 # bigrams
-A script for analyzing documents for most  common symbols and bigrams and trigrams of symbols.
+A script for analyzing text files/source code to find the most common symbols, bigrams and trigrams.
+It can be used as a tool when designing a keyboard layout to know which symbols and combination of symbols to have on easy access layers and combos.
 
 Rules:
 - Single: Symbols, digits and whitespace, no letters
