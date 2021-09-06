@@ -15,7 +15,7 @@ Flags:
   `n=25 (default: 25)`
 
 ```
-# Run for Kotlin, Java and XML files, ignore build folders
+# Run for Kotlin and XML files, ignore build folders
 ./Bigrams.kt t=kt,xml e=build ./path/to/folder
 Analyzed 199 files
 
