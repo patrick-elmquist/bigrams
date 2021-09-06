@@ -8,18 +8,18 @@ Rules:
 - Triple: Symbols and whitespace as 2nd char, no letters or digits
 
 Flags:
-- File types 
-  `t=kt,xml,java (default: kt)`
+- File types
+  `ext=kt,xml,java (default: kt)`
 - Exclude folders
-  `e=build,tmp (default: build)` 
+  `ignore=build,tmp (default: build)`
 - Show top N items
-  `n=25 (default: 25)`
+  `top=10 (default: 25)`
 
 To be used with `kscript`.
 
 ```
 # Run for Kotlin and XML files, ignore build folders
-./Bigrams.kt t=kt,xml e=build ./path/to/folder
+./Bigrams.kt ext=kt,xml ignore=build ./path/to/folder
 Analyzed 199 files
 
 Extension 'kt'

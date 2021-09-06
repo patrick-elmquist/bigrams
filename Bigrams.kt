@@ -6,14 +6,14 @@ import java.util.concurrent.TimeUnit
 private val DEFAULT_EXTENSIONS = listOf("kt")
 private val DEFAULT_EXCLUDED_FOLDERS = listOf("build")
 private const val DEFAULT_N = 25
-private const val COMBINED_EXTENSIONS = "Combined"
+private const val COMBINED_EXTENSION = "Combined"
 private const val PADDING = "  "
 private const val N_MAX = 999
 
 fun main(args: Array<String>) {
-    val extensions = args.parseListArg("t") ?: DEFAULT_EXTENSIONS
-    val excludedFolders = args.parseListArg("e") ?: DEFAULT_EXCLUDED_FOLDERS
-    val nToShow = (args.parseIntArg("n") ?: DEFAULT_N).coerceAtMost(N_MAX)
+    val extensions = args.parseListArg("ext") ?: DEFAULT_EXTENSIONS
+    val excludedFolders = args.parseListArg("ignore") ?: DEFAULT_EXCLUDED_FOLDERS
+    val nToShow = (args.parseIntArg("top") ?: DEFAULT_N).coerceAtMost(N_MAX)
     val path = args.inputFile()
 
     val (loggers, time) = time {
@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
 
     loggers
         // Don't show the 'All' table if there's only one extension
-        .filter { loggers.size != 2 || it.key != COMBINED_EXTENSIONS }
+        .filter { loggers.size != 2 || it.key != COMBINED_EXTENSION }
         .forEach { (extension, logger) -> logger.print(extension, nToShow) }
 
     println("Analyzes took $time seconds.")
@@ -53,7 +53,7 @@ private fun File.analyzeDir(extensions: List<String>, excludedFolders: List<Stri
 
 private fun File.analyze(loggers: MutableMap<String, Logger> = mutableMapOf()): Map<String, Logger> {
     val extensionLogger = loggers.getOrPut(extension) { Logger() }
-    val combinedLogger = loggers.getOrPut(COMBINED_EXTENSIONS) { Logger() }
+    val combinedLogger = loggers.getOrPut(COMBINED_EXTENSION) { Logger() }
     println("Analyzing file: $path")
     useLines { lines ->
         lines.flatMap { line -> line.trim().windowed(3, 1, partialWindows = true) }
