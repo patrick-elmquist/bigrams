@@ -15,6 +15,8 @@ Flags:
 - Show top N items
   `n=25 (default: 25)`
 
+To be used with `kscript`.
+
 ```
 # Run for Kotlin and XML files, ignore build folders
 ./Bigrams.kt t=kt,xml e=build ./path/to/folder
