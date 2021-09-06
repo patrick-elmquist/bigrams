@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit
 private val DEFAULT_EXTENSIONS = listOf("kt")
 private val DEFAULT_EXCLUDED_FOLDERS = listOf("build")
 private const val DEFAULT_N = 25
-private const val ALL_EXTENSIONS = "All"
+private const val COMBINED_EXTENSIONS = "Combined"
 private const val PADDING = "  "
 private const val N_MAX = 999
 
@@ -26,7 +26,7 @@ fun main(args: Array<String>) {
 
     loggers
         // Don't show the 'All' table if there's only one extension
-        .filter { loggers.size != 2 || it.key != ALL_EXTENSIONS }
+        .filter { loggers.size != 2 || it.key != COMBINED_EXTENSIONS }
         .forEach { (extension, logger) -> logger.print(extension, nToShow) }
 
     println("Analyzes took $time seconds.")
@@ -53,13 +53,13 @@ private fun File.analyzeDir(extensions: List<String>, excludedFolders: List<Stri
 
 private fun File.analyze(loggers: MutableMap<String, Logger> = mutableMapOf()): Map<String, Logger> {
     val extensionLogger = loggers.getOrPut(extension) { Logger() }
-    val allLogger = loggers.getOrPut(ALL_EXTENSIONS) { Logger() }
+    val combinedLogger = loggers.getOrPut(COMBINED_EXTENSIONS) { Logger() }
     println("Analyzing file: $path")
     useLines { lines ->
         lines.flatMap { line -> line.trim().windowed(3, 1, partialWindows = true) }
             .forEach { triple ->
                 extensionLogger.add(triple)
-                allLogger.add(triple)
+                combinedLogger.add(triple)
             }
     }
     return loggers
@@ -79,15 +79,15 @@ private fun Array<String>.parseIntArg(key: String) =
 private class Logger {
     private val map = mutableMapOf<String, Int>()
 
-    fun add(s: String) {
-        val first = s.getOrNull(0)
+    fun add(triple: String) {
+        val first = triple.getOrNull(0)
         when {
             first == null -> return
             first.isLetter() -> return
             else -> map.increment("$first")
         }
 
-        val second = s.getOrNull(1)
+        val second = triple.getOrNull(1)
         when {
             first.isDigit() -> return
             first.isWhitespace() -> return
@@ -97,7 +97,7 @@ private class Logger {
             else -> map.increment("$first$second")
         }
 
-        val third = s.getOrNull(2)
+        val third = triple.getOrNull(2)
         when {
             third == null -> return
             third.isLetterOrDigit() -> return
@@ -107,27 +107,29 @@ private class Logger {
     }
 
     fun print(extension: String, n: Int) {
+        val numbers = makeNumberColumn(n)
         val singleColumn = map.makeColumn(1, n)
         val tupleColumn = map.makeColumn(2, n)
         val tripleColumn = map.makeColumn(3, n)
-        val numbers = (1..n).map { " ${it.toString().padStart(4, ' ')} " }
 
-        val columns = listOf(
-            "Top${n.toString().padStart(3, ' ')}" to numbers,
-            "${PADDING}Single" to singleColumn,
-            "${PADDING}Tuple" to tupleColumn,
-            "${PADDING}Triple" to tripleColumn,
+        val columns = listOf(numbers, singleColumn, tupleColumn, tripleColumn)
+        val headers = listOf(
+            "Top${n.toString().padStart(3, ' ')}",
+            "${PADDING}Single",
+            "${PADDING}Tuple",
+            "${PADDING}Triple"
         )
-        val horizontalLine = makeHorizontalLine(columns.map { it.second })
-        val headers = makeHeaderLine(columns)
+
+        val horizontalLine = makeHorizontalLine(columns)
+        val headerLine = makeHeaderLine(columns, headers)
 
         val lines = buildString {
             appendLine("Extension '$extension'")
             appendLine(horizontalLine)
-            appendLine(headers)
+            appendLine(headerLine)
             appendLine(horizontalLine)
             (0 until n).forEach { row ->
-                columns.map { it.second }.map { it[row] }.forEach { append('|').append(it) }
+                columns.forEach { append('|').append(it[row]) }
                 appendLine("|")
             }
             appendLine(horizontalLine)
@@ -136,41 +138,37 @@ private class Logger {
         println()
     }
 
-    private fun Map<String, Int>.makeColumn(len: Int, n: Int): List<String> {
+    private fun makeNumberColumn(n: Int) = (1..n).map { " ${it.toString().padStart(4, ' ')} " }
+
+    private fun Map<String, Int>.makeColumn(symbolLength: Int, n: Int): List<String> {
         val list = toList()
-            .filter { it.first.length == len }
+            .filter { (symbol, _) -> symbol.length == symbolLength }
             .sortedByDescending { (_, count) -> count }
             .take(n)
-        val symbolLen = list.first().first.length
-        val countMaxLen = list.first().second.toString().length
-        val totalPadding = 3 * PADDING.length
-        val rowLength = symbolLen + countMaxLen + totalPadding
+        val (symbolLen, countLen) = list.first().let { (symbol, count) -> symbol.length to count.toString().length }
+        val rowLength = symbolLen + countLen + 3 * PADDING.length
         return list.map { (symbol, count) ->
-            val paddedCount = count.toString().padStart(countMaxLen, ' ')
+            val paddedCount = count.toString().padStart(countLen, ' ')
             "$PADDING$symbol$PADDING$paddedCount$PADDING"
-        } + (0 until (n - list.size)).map { buildString { repeat(rowLength) { append(' ') } } }
+        } + (0 until (n - list.size)).map { repeat(rowLength, ' ') }
     }
 
-    private fun makeHeaderLine(cols: List<Pair<String, List<String>>>): String {
-        return buildString {
+    private fun makeHeaderLine(columns: List<List<String>>, headers: List<String>) =
+        buildString {
+            val zip = headers.zip(columns.map { it.first().length })
             append('|')
-            cols.forEach { (header, col) ->
-                val len = col.first().length
-                append(header.padEnd(len, ' '))
-                append('|')
+            zip.forEach { (header, columnLen) ->
+                append(header.padEnd(columnLen, ' ')).append('|')
             }
         }
-    }
 
-    private fun makeHorizontalLine(cols: List<List<String>>, sep: Char = '+'): String {
-        return buildString {
-            cols.forEach {
-                append(sep)
-                repeat(it.first().length) { append('-') }
-            }
+    private fun makeHorizontalLine(cols: List<List<String>>, sep: Char = '+') =
+        buildString {
             append(sep)
+            cols.forEach { append(repeat(it.first().length, '-')).append(sep) }
         }
-    }
+
+    private fun repeat(n: Int, c: Char) = buildString { repeat(n) { append(c) } }
 
     private fun <T> MutableMap<T, Int>.increment(key: T) = put(key, getOrDefault(key, 0) + 1)
 }
