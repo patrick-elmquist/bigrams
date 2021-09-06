@@ -24,7 +24,10 @@ fun main(args: Array<String>) {
         }
     }
 
-    loggers.forEach { (extension, logger) -> logger.print(extension, nToShow) }
+    loggers
+        // Don't show the 'All' table if there's only one extension
+        .filter { loggers.size != 2 || it.key != ALL_EXTENSIONS }
+        .forEach { (extension, logger) -> logger.print(extension, nToShow) }
 
     println("Analyzes took $time seconds.")
 }
@@ -74,16 +77,14 @@ private fun Array<String>.parseIntArg(key: String) =
         ?.toIntOrNull()
 
 private class Logger {
-    private val singles = mutableMapOf<Char, Int>()
-    private val tuples = mutableMapOf<String, Int>()
-    private val triples = mutableMapOf<String, Int>()
+    private val map = mutableMapOf<String, Int>()
 
     fun add(s: String) {
         val first = s.getOrNull(0)
         when {
             first == null -> return
             first.isLetter() -> return
-            else -> singles.increment(first)
+            else -> map.increment("$first")
         }
 
         val second = s.getOrNull(1)
@@ -93,7 +94,7 @@ private class Logger {
             second == null -> return
             second.isLetterOrDigit() -> return
             second.isWhitespace() -> Unit
-            else -> tuples.increment("$first$second")
+            else -> map.increment("$first$second")
         }
 
         val third = s.getOrNull(2)
@@ -101,14 +102,14 @@ private class Logger {
             third == null -> return
             third.isLetterOrDigit() -> return
             first.isWhitespace() || third.isWhitespace() -> return
-            else -> triples.increment("$first$second$third")
+            else -> map.increment("$first$second$third")
         }
     }
 
     fun print(extension: String, n: Int) {
-        val singleColumn = singles.makeColumn(n)
-        val tupleColumn = tuples.makeColumn(n)
-        val tripleColumn = triples.makeColumn(n)
+        val singleColumn = map.makeColumn(1, n)
+        val tupleColumn = map.makeColumn(2, n)
+        val tripleColumn = map.makeColumn(3, n)
         val numbers = (1..n).map { " ${it.toString().padStart(4, ' ')} " }
 
         val columns = listOf(
@@ -135,11 +136,12 @@ private class Logger {
         println()
     }
 
-    private fun <T> Map<T, Int>.makeColumn(n: Int): List<String> {
+    private fun Map<String, Int>.makeColumn(len: Int, n: Int): List<String> {
         val list = toList()
+            .filter { it.first.length == len }
             .sortedByDescending { (_, count) -> count }
             .take(n)
-        val symbolLen = list.first().first.toString().length
+        val symbolLen = list.first().first.length
         val countMaxLen = list.first().second.toString().length
         val totalPadding = 3 * PADDING.length
         val rowLength = symbolLen + countMaxLen + totalPadding
