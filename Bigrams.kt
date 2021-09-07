@@ -2,6 +2,7 @@
 
 import java.io.File
 import java.util.concurrent.TimeUnit
+import kotlin.math.max
 
 private val DEFAULT_EXTENSIONS = listOf("kt")
 private val DEFAULT_EXCLUDED_FOLDERS = listOf("build")
@@ -11,15 +12,15 @@ private const val PADDING = "  "
 private const val N_MAX = 999
 
 fun main(args: Array<String>) {
+    val inputFile = args.inputFile().takeIf { it.exists() } ?: return output("Not a valid file path")
     val extensions = args.parseListArg("ext") ?: DEFAULT_EXTENSIONS
     val excludedFolders = args.parseListArg("ignore") ?: DEFAULT_EXCLUDED_FOLDERS
     val nToShow = (args.parseIntArg("top") ?: DEFAULT_N).coerceAtMost(N_MAX)
-    val path = args.inputFile()
 
     val (loggers, time) = time {
         when {
-            path.isDirectory -> path.analyzeDir(extensions, excludedFolders)
-            path.extension in extensions -> path.analyze()
+            inputFile.isDirectory -> inputFile.analyzeDir(extensions, excludedFolders)
+            inputFile.extension in extensions -> inputFile.analyze()
             else -> emptyMap()
         }
     }
@@ -29,40 +30,7 @@ fun main(args: Array<String>) {
         .filter { loggers.size != 2 || it.key != COMBINED_EXTENSION }
         .forEach { (extension, logger) -> logger.print(extension, nToShow) }
 
-    println("Analyzes took $time seconds.")
-}
-
-private fun <T> time(block: () -> T): Pair<T, Long> {
-    val before = System.currentTimeMillis()
-    val value = block()
-    val after = System.currentTimeMillis()
-    return value to TimeUnit.MILLISECONDS.toSeconds(after - before)
-}
-
-private fun File.analyzeDir(extensions: List<String>, excludedFolders: List<String>): Map<String, Logger> {
-    val loggers = mutableMapOf<String, Logger>()
-    println("Analyzing folder: $path")
-    val fileCount = walkTopDown()
-        .filter { it.extension in extensions }
-        .filterNot { file -> excludedFolders.any { it in file.path } }
-        .onEach { it.analyze(loggers) }
-        .count()
-    println("Analyzed $fileCount files")
-    return loggers
-}
-
-private fun File.analyze(loggers: MutableMap<String, Logger> = mutableMapOf()): Map<String, Logger> {
-    val extensionLogger = loggers.getOrPut(extension) { Logger() }
-    val combinedLogger = loggers.getOrPut(COMBINED_EXTENSION) { Logger() }
-    println("Analyzing file: $path")
-    useLines { lines ->
-        lines.flatMap { line -> line.trim().windowed(3, 1, partialWindows = true) }
-            .forEach { triple ->
-                extensionLogger.add(triple)
-                combinedLogger.add(triple)
-            }
-    }
-    return loggers
+    output("Analyzes took $time seconds.")
 }
 
 private fun Array<String>.inputFile() = File(last())
@@ -75,6 +43,41 @@ private fun Array<String>.parseIntArg(key: String) =
     firstOrNull { it.startsWith("$key=") }
         ?.drop(key.length + 1)
         ?.toIntOrNull()
+
+private fun File.analyzeDir(
+    extensions: List<String>,
+    excludedFolders: List<String>
+): Map<String, Logger> {
+    val loggers = mutableMapOf<String, Logger>()
+    output("Analyzing folder: $path")
+
+    val fileCount = walkTopDown()
+        .filter { it.extension in extensions }
+        .filterNot { file -> excludedFolders.any { it in file.path } }
+        .onEach { it.analyze(loggers, carriageReturn = true) }
+        .count()
+    output("Analyzed $fileCount files", withCarriageReturn = true)
+    output()
+    return loggers
+}
+
+private fun File.analyze(
+    loggers: MutableMap<String, Logger> = mutableMapOf(),
+    carriageReturn: Boolean = false
+): Map<String, Logger> {
+    val extensionLogger = loggers.getOrPut(extension) { Logger() }
+    val combinedLogger = loggers.getOrPut(COMBINED_EXTENSION) { Logger() }
+
+    output("Analyzing file: $name", withCarriageReturn = carriageReturn)
+    useLines { lines ->
+        lines.flatMap { line -> line.trim().windowed(3, 1, partialWindows = true) }
+            .forEach { triple ->
+                extensionLogger.add(triple)
+                combinedLogger.add(triple)
+            }
+    }
+    return loggers
+}
 
 private class Logger {
     private val map = mutableMapOf<String, Int>()
@@ -134,8 +137,7 @@ private class Logger {
             }
             appendLine(horizontalLine)
         }
-        println(lines)
-        println()
+        output(lines)
     }
 
     private fun makeNumberColumn(n: Int) = (1..n).map { " ${it.toString().padStart(4, ' ')} " }
@@ -172,3 +174,33 @@ private class Logger {
 
     private fun <T> MutableMap<T, Int>.increment(key: T) = put(key, getOrDefault(key, 0) + 1)
 }
+
+private fun <T> time(block: () -> T): Pair<T, Long> {
+    val before = System.currentTimeMillis()
+    val value = block()
+    val after = System.currentTimeMillis()
+    return value to TimeUnit.MILLISECONDS.toSeconds(after - before)
+}
+
+private fun output(msg: String = "", withCarriageReturn: Boolean = false) = Printer.out(msg, withCarriageReturn)
+
+private object Printer {
+    private var longestLine = 0
+    private var wasLastWithCR: Boolean = false
+    fun out(msg: String, withCarriageReturn: Boolean = false) {
+        if (withCarriageReturn) {
+            wasLastWithCR = true
+            val output = "\r$msg"
+            longestLine = max(output.length, longestLine)
+            print(output.padEnd(longestLine, ' '))
+        } else {
+            if (wasLastWithCR) {
+                wasLastWithCR = false
+                longestLine = 0
+                println()
+            }
+            println(msg)
+        }
+    }
+}
+
